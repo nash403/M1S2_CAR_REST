@@ -1,19 +1,29 @@
 package car.tp2;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
 import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
+import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Response;
 
 import org.apache.commons.net.ftp.FTPClient;
+import org.apache.commons.net.ftp.FTPClientConfig;
+import org.apache.commons.net.ftp.FTPFile;
+import org.apache.commons.net.ftp.FTPFileEntryParser;
 import org.apache.commons.net.ftp.FTPReply;
+import org.apache.commons.net.ftp.parser.FTPFileEntryParserFactory;
+import org.apache.commons.net.ftp.parser.ParserInitializationException;
 import org.apache.cxf.helpers.IOUtils;
 import org.springframework.http.MediaType;
 
@@ -135,7 +145,7 @@ public class FileDownloadRessource {
 			Response response = Response.ok(in).build();
 			return response;
 		} catch (IOException e) {
-			System.out.print("Erreur lors du téléchargement du fichier " + filename);
+			System.out.print("Erreur lors du téléchargement du fichier :" + filename);
 		}
        return null;
 	}
@@ -144,32 +154,99 @@ public class FileDownloadRessource {
 	@Produces("text/html")
 	@Path("/html/{filename}")
 	public String updateFile(@PathParam("filename") String filename) {
-		/*File f = new File("src/main/java/car/tp2/Config.java");
-		System.out.println(
-				"GET " + (f.exists() ? 200 : 404) + " /rest/tp2/download/" + filename + " -> " + f.getAbsolutePath());*/
 		InputStream in;
 		try {
 			in = this.ftp.retrieveFileStream(filename);
 			return IOUtils.toString(in, "UTF-8") ;
 		} catch (IOException e) {
-			System.out.print("Erreur lors du téléchargement et de l'affichage du fichier " + filename);
+			System.out.print("Erreur lors du téléchargement et de l'affichage du fichier :" + filename);
 		}
        return null;
 	}
 	
 	@GET
+    @Path("/delete/{fileName}")
+    @Produces("text/html")
+    public String deleteFile(@PathParam("fileName") String fileName) {
+       
+		try {
+			ftp.deleteFile(fileName);
+			String msg = "<h1>File Download</h1>\n" ;
+			msg += "<p>The file "+ fileName +" has been deleted.</p>";
+			return msg;
+		} catch (IOException e) {
+			System.out.println("Echec de la supression du fichier " + fileName);
+		}
+		return null;
+    }
+	
+	@GET
 	@Produces("text/html")
 	@Path("/application/html")
-	public String displayDirectory() {
-		/*File f = new File("src/main/java/car/tp2/Config.java");
-		System.out.println(
-				"GET " + (f.exists() ? 200 : 404) + " /rest/tp2/download/" + filename + " -> " + f.getAbsolutePath());*/
+	public String displayFileList() {
 		InputStream in;
 		try {
-			in = this.ftp.retrieveFileStream(filename);
-			return IOUtils.toString(in, "UTF-8") ;
+			//this.ftp.enterRemotePassiveMode();
+			String html = "<h1>Server files</h1>\n" ;
+			
+			//Tout ça, c'est la merde, ça fonctionne pas.
+			/*ftp.setParserFactory(new FTPFileEntryParserFactory() {
+				
+				@Override
+				public FTPFileEntryParser createFileEntryParser(FTPClientConfig arg0) throws ParserInitializationException {
+					// TODO Auto-generated method stub
+					return null;
+				}
+				
+				@Override
+				public FTPFileEntryParser createFileEntryParser(String arg0) throws ParserInitializationException {
+					FTPFileEntryParser ftp = new FTPFileEntryParser() {
+						
+						@Override
+						public String readNextEntry(BufferedReader arg0) throws IOException {
+
+							StringBuilder sb= new StringBuilder();
+							String line = "";
+
+							while (arg0.ready() && (line = arg0.readLine()) != null) {
+							    sb.append(line + "\r\n");
+							}
+
+							String result = sb.toString();
+							return result;
+						}
+						
+						@Override
+						public List<String> preParse(List<String> arg0) {
+							// TODO Auto-generated method stub
+							return arg0;
+						}
+						
+						@Override
+						public FTPFile parseFTPEntry(String arg0) {
+							FTPFile file = new FTPFile();
+							file.setName(arg0);
+							return file;
+						}
+					};
+					return ftp;
+				}
+			});*/
+			
+			
+			//Il renvois jamais rien, je suppose qu'il arrive pas à parser notre LIST...
+			for(FTPFile f : ftp.listFiles()){
+				html += "<p>" ;
+				html += "Name : " + f.getName() + " / ";
+				html += "TSize in bytes : " + f.getSize() + " / ";
+				html += "Created : " + f.getTimestamp() + " / " ;
+				html += "</p>";
+			}
+			
+			
+			return html;
 		} catch (IOException e) {
-			System.out.print("Erreur lors du téléchargement et de l'affichage du fichier " + filename);
+			System.out.print("Erreur lors de l'affichage de la liste des fichiers du serveur ");
 		}
        return null;
 	}
