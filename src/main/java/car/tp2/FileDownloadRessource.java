@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.SocketException;
+import java.nio.charset.StandardCharsets;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -13,6 +14,7 @@ import javax.ws.rs.core.Response;
 
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPReply;
+import org.apache.cxf.helpers.IOUtils;
 import org.springframework.http.MediaType;
 
 @Path("/download")
@@ -67,7 +69,10 @@ public class FileDownloadRessource {
 	@GET
 	@Produces("text/html")
 	public String sayHello() {
-		return "<h1>File Download</h1>\n<p>If you want a file, ask for URL: <strong>/rest/tp2/download/{filename or path}></strong></p>";
+		String welcomeMsg = "<h1>File Download</h1>\n" ;
+		welcomeMsg += "<p>If you want to download a file, ask for URL: <strong>/rest/tp2/download/{filename or path}</strong></p>";
+		welcomeMsg += "<p>If you want to display a file, ask for URL: <strong>/rest/tp2/download/html/{filename or path}</strong></p>";
+		return welcomeMsg;
 	}
 
 	@GET
@@ -131,6 +136,40 @@ public class FileDownloadRessource {
 			return response;
 		} catch (IOException e) {
 			System.out.print("Erreur lors du téléchargement du fichier " + filename);
+		}
+       return null;
+	}
+
+	@GET
+	@Produces("text/html")
+	@Path("/html/{filename}")
+	public String updateFile(@PathParam("filename") String filename) {
+		/*File f = new File("src/main/java/car/tp2/Config.java");
+		System.out.println(
+				"GET " + (f.exists() ? 200 : 404) + " /rest/tp2/download/" + filename + " -> " + f.getAbsolutePath());*/
+		InputStream in;
+		try {
+			in = this.ftp.retrieveFileStream(filename);
+			return IOUtils.toString(in, "UTF-8") ;
+		} catch (IOException e) {
+			System.out.print("Erreur lors du téléchargement et de l'affichage du fichier " + filename);
+		}
+       return null;
+	}
+	
+	@GET
+	@Produces("text/html")
+	@Path("/application/html")
+	public String displayDirectory() {
+		/*File f = new File("src/main/java/car/tp2/Config.java");
+		System.out.println(
+				"GET " + (f.exists() ? 200 : 404) + " /rest/tp2/download/" + filename + " -> " + f.getAbsolutePath());*/
+		InputStream in;
+		try {
+			in = this.ftp.retrieveFileStream(filename);
+			return IOUtils.toString(in, "UTF-8") ;
+		} catch (IOException e) {
+			System.out.print("Erreur lors du téléchargement et de l'affichage du fichier " + filename);
 		}
        return null;
 	}
