@@ -2,15 +2,18 @@ package car.tp2;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.SocketException;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.core.Response;
 
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPReply;
+import org.springframework.http.MediaType;
 
 @Path("/download")
 public class FileDownloadRessource {
@@ -55,6 +58,8 @@ public class FileDownloadRessource {
 			System.out.println("FTP Connect error: connection refused");
 			error = true;
 			e.printStackTrace();
+		} finally {
+			
 		}
 		return !error;
 	}
@@ -115,11 +120,22 @@ public class FileDownloadRessource {
 	@GET
 	@Produces("application/octet-stream")
 	@Path("/{filename}")
-	public File getFile(@PathParam("filename") String filename) {
-		File f = new File("src/main/java/car/tp2/Config.java");
+	public Response getFile(@PathParam("filename") String filename) {
+		/*File f = new File("src/main/java/car/tp2/Config.java");
 		System.out.println(
-				"GET " + (f.exists() ? 200 : 404) + " /rest/tp2/download/" + filename + " -> " + f.getAbsolutePath());
-		return f;
+				"GET " + (f.exists() ? 200 : 404) + " /rest/tp2/download/" + filename + " -> " + f.getAbsolutePath());*/
+		InputStream in;
+		try {
+			in = this.ftp.retrieveFileStream(filename);
+			Response response = Response.ok(in).build();
+			return response;
+		} catch (IOException e) {
+			System.out.print("Erreur lors du téléchargement du fichier " + filename);
+		}
+       return null;
 	}
+	
+	
+	
 
 }
