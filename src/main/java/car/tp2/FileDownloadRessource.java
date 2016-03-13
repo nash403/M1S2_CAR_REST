@@ -157,7 +157,6 @@ public class FileDownloadRessource {
 		try {
 			in = this.ftp.retrieveFileStream(pathname + "/" + filename);
 			Response response = Response.ok(in).build();
-
 			ftp.completePendingCommand();
 			return response;
 		} catch (IOException e) {
@@ -181,10 +180,25 @@ public class FileDownloadRessource {
 	}
 	
 	@GET
+    @Path("/delete/{var: .*}/{fileName}")
+    @Produces("text/html")
+    public String deleteFile(@PathParam("var") String pathname, @PathParam("fileName") String fileName) {
+       
+		try {
+			ftp.deleteFile(pathname + "/" +fileName);
+			String msg = "<h1>File deletion</h1>\n" ;
+			msg += "<p>The file "+ pathname + "/" + fileName +" has been deleted.</p>";
+			return msg;
+		} catch (IOException e) {
+			System.out.println("Echec de la supression du fichier " + pathname + "/" + fileName);
+		}
+		return null;
+    }
+	
+	@GET
     @Path("/delete/{fileName}")
     @Produces("text/html")
-    public String deleteFile(@PathParam("fileName") String fileName) {
-       
+    public String deleteFile(@PathParam("fileName") String fileName) { 
 		try {
 			ftp.deleteFile(fileName);
 			String msg = "<h1>File deletion</h1>\n" ;
