@@ -32,7 +32,8 @@ public class FileDownloadRessource {
 
 	protected FTPClient ftp;
 	protected boolean initialized = false;
-
+	private String basePath = "http://localhost:8080/rest/tp2/download/";
+	
 	public FileDownloadRessource() {
 		try {
 			this.initialized = init();
@@ -131,18 +132,33 @@ public class FileDownloadRessource {
 		return "<h1>Ok</h1>";
 
 	}
-
+	
 	@GET
 	@Produces("application/octet-stream")
-	@Path("/{filename}")
+	@Path("{filename}")
 	public Response getFile(@PathParam("filename") String filename) {
-		/*File f = new File("src/main/java/car/tp2/Config.java");
-		System.out.println(
-				"GET " + (f.exists() ? 200 : 404) + " /rest/tp2/download/" + filename + " -> " + f.getAbsolutePath());*/
 		InputStream in;
 		try {
 			in = this.ftp.retrieveFileStream(filename);
 			Response response = Response.ok(in).build();
+			ftp.completePendingCommand();
+			return response;
+		} catch (IOException e) {
+			System.out.print("Erreur lors du téléchargement du fichier :" + filename);
+		}
+       return null;
+	}
+
+	@GET
+	@Produces("application/octet-stream")
+	@Path("{var: .*}/{filename}")
+	public Response getFile(@PathParam("var") String pathname, @PathParam("filename") String filename) {
+		InputStream in;
+		try {
+			in = this.ftp.retrieveFileStream(pathname + "/" + filename);
+			Response response = Response.ok(in).build();
+
+			ftp.completePendingCommand();
 			return response;
 		} catch (IOException e) {
 			System.out.print("Erreur lors du téléchargement du fichier :" + filename);
@@ -171,7 +187,7 @@ public class FileDownloadRessource {
        
 		try {
 			ftp.deleteFile(fileName);
-			String msg = "<h1>File Download</h1>\n" ;
+			String msg = "<h1>File deletion</h1>\n" ;
 			msg += "<p>The file "+ fileName +" has been deleted.</p>";
 			return msg;
 		} catch (IOException e) {
@@ -184,66 +200,63 @@ public class FileDownloadRessource {
 	@Produces("text/html")
 	@Path("/application/html")
 	public String displayFileList() {
-		InputStream in;
 		try {
-			//this.ftp.enterRemotePassiveMode();
 			String html = "<h1>Server files</h1>\n" ;
-			
-			//Tout ça, c'est la merde, ça fonctionne pas.
-			/*ftp.setParserFactory(new FTPFileEntryParserFactory() {
-				
-				@Override
-				public FTPFileEntryParser createFileEntryParser(FTPClientConfig arg0) throws ParserInitializationException {
-					// TODO Auto-generated method stub
-					return null;
-				}
-				
-				@Override
-				public FTPFileEntryParser createFileEntryParser(String arg0) throws ParserInitializationException {
-					FTPFileEntryParser ftp = new FTPFileEntryParser() {
-						
-						@Override
-						public String readNextEntry(BufferedReader arg0) throws IOException {
 
-							StringBuilder sb= new StringBuilder();
-							String line = "";
-
-							while (arg0.ready() && (line = arg0.readLine()) != null) {
-							    sb.append(line + "\r\n");
-							}
-
-							String result = sb.toString();
-							return result;
-						}
-						
-						@Override
-						public List<String> preParse(List<String> arg0) {
-							// TODO Auto-generated method stub
-							return arg0;
-						}
-						
-						@Override
-						public FTPFile parseFTPEntry(String arg0) {
-							FTPFile file = new FTPFile();
-							file.setName(arg0);
-							return file;
-						}
-					};
-					return ftp;
-				}
-			});*/
-			
-			
-			//Il renvois jamais rien, je suppose qu'il arrive pas à parser notre LIST...
 			for(FTPFile f : ftp.listFiles()){
-				html += "<p>" ;
-				html += "Name : " + f.getName() + " / ";
-				html += "TSize in bytes : " + f.getSize() + " / ";
-				html += "Created : " + f.getTimestamp() + " / " ;
-				html += "</p>";
+				if(!f.getName().equals(".")){
+					html += "<p>" ;
+					html += "Name : " + f.getName() + " / ";
+					html += "Size in bytes : " + f.getSize() + " / ";
+					if(f.isFile()){
+						html += "  <a href =" + basePath + f.getName()+ ">Download</a>" ;
+					}
+					if(f.isDirectory()){
+						if(f.getName().equals("..")){
+							html += "  <a href =" + basePath + "application/html>Open</a>" ;
+						}else{
+							html += "  <a href =" + basePath + "application/html/" + f.getName()+ ">Open</a>" ;
+						}
+					}
+				}
 			}
 			
 			
+			return html;
+		} catch (IOException e) {
+			System.out.print("Erreur lors de l'affichage de la liste des fichiers du serveur ");
+		}
+       return null;
+	}
+	
+	@GET
+	@Produces("text/html")
+	@Path("/application/html/{var: .*}")
+	public String displayFileList(@PathParam("var") String pathname) {
+		try {
+			String html = "<h1>Server files</h1>\n" ;
+			if(pathname.length() > 0 && pathname.lastIndexOf("/") == pathname.length()-1){
+				pathname = pathname.substring(0, pathname.length()-1);
+			}
+
+			for(FTPFile f : ftp.listFiles(pathname)){
+				if(!f.getName().equals(".")){
+					html += "<p>" ;
+					html += "Name : " + f.getName() + " / ";
+					html += "Size in bytes : " + f.getSize() + " / ";
+					if(f.isFile()){
+						html += "  <a href =" + basePath + pathname + "/" + f.getName()+ ">Download</a>" ;
+					}
+					if(f.isDirectory()){
+						if(f.getName().equals("..")){
+							html += "  <a href =" + basePath + "application/html/" + pathname + "/" + f.getName()+ ">Open</a>" ;
+						}else{
+							html += "  <a href =" + basePath + "application/html/" + pathname + "/" + f.getName()+ ">Open</a>" ;
+						}
+					}
+					html += "</p>";
+				}
+			}
 			return html;
 		} catch (IOException e) {
 			System.out.print("Erreur lors de l'affichage de la liste des fichiers du serveur ");
