@@ -1,31 +1,25 @@
 package car.tp2;
 
-import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.InetAddress;
 import java.net.SocketException;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
 
 import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import org.apache.commons.net.ftp.FTPClient;
-import org.apache.commons.net.ftp.FTPClientConfig;
 import org.apache.commons.net.ftp.FTPFile;
-import org.apache.commons.net.ftp.FTPFileEntryParser;
 import org.apache.commons.net.ftp.FTPReply;
-import org.apache.commons.net.ftp.parser.FTPFileEntryParserFactory;
-import org.apache.commons.net.ftp.parser.ParserInitializationException;
 import org.apache.cxf.helpers.IOUtils;
-import org.springframework.http.MediaType;
+import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
+import org.glassfish.jersey.media.multipart.FormDataParam;
 
 @Path("/download")
 public class FileDownloadRessource {
@@ -179,7 +173,7 @@ public class FileDownloadRessource {
        return null;
 	}
 	
-	@GET
+	@DELETE
     @Path("/delete/{var: .*}/{fileName}")
     @Produces("text/html")
     public String deleteFile(@PathParam("var") String pathname, @PathParam("fileName") String fileName) {
@@ -195,7 +189,7 @@ public class FileDownloadRessource {
 		return null;
     }
 	
-	@GET
+	@DELETE
     @Path("/delete/{fileName}")
     @Produces("text/html")
     public String deleteFile(@PathParam("fileName") String fileName) { 
@@ -278,7 +272,34 @@ public class FileDownloadRessource {
        return null;
 	}
 	
+	@GET
+	@Path("/upload")
+	public String uploadFileForm(){
+		return "<html>" 
+				+ "<body>"
+				+	"<h1>Upload file form</h1>"
+				+	"<form action=\" "+ basePath + "upload\" method=\"post\" enctype=\"multipart/form-data\">"
+				+	   "<p>"
+				+		"Select a file : <input type=\"file\" name=\"file\" size=\"50\" />"
+				+	   "</p>"
+				+	   "<input type=\"submit\" value=\"Upload It\" />"
+				+	"</form>"
+				+"</body>"
+				+"</html>" ;
+	}
 	
-	
+	@POST
+	@Path("/upload")
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
+    @Produces("text/html")
+	public String upload(@FormDataParam("file") InputStream file, @FormDataParam("file") FormDataContentDisposition fileDetail) {        	      
+    	try {
+    		ftp.storeFile("test.txt", file);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		return "";
+	}
 
 }

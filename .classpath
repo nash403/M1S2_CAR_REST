@@ -96,5 +96,6 @@
 	<classpathentry kind="lib" path="lib/woodstox-core-asl-4.1.4.jar"/>
 	<classpathentry kind="lib" path="lib/wsdl4j-1.6.2.jar"/>
 	<classpathentry kind="lib" path="lib/xmlschema-core-2.0.3.jar"/>
+	<classpathentry kind="lib" path="lib/jersey-media-multipart-2.0-m11.jar"/>
 	<classpathentry kind="output" path="target/classes"/>
 </classpath>
