@@ -6,6 +6,7 @@ import java.net.SocketException;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -21,12 +22,14 @@ import org.apache.cxf.helpers.IOUtils;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 
-@Path("/download")
+
+@Path("/ftp")
 public class FileDownloadRessource {
 
 	protected FTPClient ftp;
 	protected boolean initialized = false;
-	private String basePath = "http://localhost:8080/rest/tp2/download/";
+	private String basePath = "http://localhost:8080/rest/tp2/ftp/";
+	private boolean isAuthenticated = false; 
 	
 	public FileDownloadRessource() {
 		try {
@@ -58,8 +61,8 @@ public class FileDownloadRessource {
 				System.err.println("FTP server refused connection.");
 				return false;
 			}
-			this.ftp.login("Bobby", "123");
-			System.out.print(this.ftp.getReplyString());
+			//this.ftp.login("Bobby", "123");
+			//System.out.print(this.ftp.getReplyString());
 
 		} catch (IOException e) {
 			System.out.println("FTP Connect error: connection refused");
@@ -70,13 +73,24 @@ public class FileDownloadRessource {
 		}
 		return !error;
 	}
+	
+	private boolean connectToServer(String id, String password){
+		try {
+			return this.ftp.login(id, password);
+		} catch (IOException e) {
+			System.out.println("FTP Connect error: connection refused");
+			return false;
+		}
+	}
 
 	@GET
 	@Produces("text/html")
 	public String sayHello() {
 		String welcomeMsg = "<h1>File Download</h1>\n" ;
-		welcomeMsg += "<p>If you want to download a file, ask for URL: <strong>/rest/tp2/download/{filename or path}</strong></p>";
-		welcomeMsg += "<p>If you want to display a file, ask for URL: <strong>/rest/tp2/download/html/{filename or path}</strong></p>";
+		welcomeMsg += "<p>You have to connect first by asking URL <strong>rest/tp2/ftp/connect</strong></p>";
+		welcomeMsg += "<p>If you want to display a file, ask for URL : <strong>rest/tp2/ftp/application/html</strong></p>";
+		welcomeMsg += "<p>If you want to download a file, ask for URL: <strong>/rest/tp2/ftp/{filename or path}</strong></p>";
+		welcomeMsg += "<p>If you want to display a file, ask for URL: <strong>/rest/tp2/ftp/html/{filename or path}</strong></p>";
 		return welcomeMsg;
 	}
 
@@ -131,6 +145,9 @@ public class FileDownloadRessource {
 	@Produces("application/octet-stream")
 	@Path("{filename}")
 	public Response getFile(@PathParam("filename") String filename) {
+		if(!isAuthenticated){
+			return Response.notModified().build();
+		}
 		InputStream in;
 		try {
 			in = this.ftp.retrieveFileStream(filename);
@@ -147,6 +164,9 @@ public class FileDownloadRessource {
 	@Produces("application/octet-stream")
 	@Path("{var: .*}/{filename}")
 	public Response getFile(@PathParam("var") String pathname, @PathParam("filename") String filename) {
+		if(!isAuthenticated){
+			return Response.notModified().build();
+		}
 		InputStream in;
 		try {
 			in = this.ftp.retrieveFileStream(pathname + "/" + filename);
@@ -155,20 +175,6 @@ public class FileDownloadRessource {
 			return response;
 		} catch (IOException e) {
 			System.out.print("Erreur lors du téléchargement du fichier :" + filename);
-		}
-       return null;
-	}
-
-	@GET
-	@Produces("text/html")
-	@Path("/html/{filename}")
-	public String updateFile(@PathParam("filename") String filename) {
-		InputStream in;
-		try {
-			in = this.ftp.retrieveFileStream(filename);
-			return IOUtils.toString(in, "UTF-8") ;
-		} catch (IOException e) {
-			System.out.print("Erreur lors du téléchargement et de l'affichage du fichier :" + filename);
 		}
        return null;
 	}
@@ -208,6 +214,9 @@ public class FileDownloadRessource {
 	@Produces("text/html")
 	@Path("/application/html")
 	public String displayFileList() {
+		if(!isAuthenticated){
+			return generateConnectHTML();
+		}
 		try {
 			String html = "<h1>Server files</h1>\n" ;
 
@@ -229,6 +238,14 @@ public class FileDownloadRessource {
 				}
 			}
 			
+			//Upload form.
+			html += "<h2>Upload a file in this folder :</h2>"
+					+	"<form action=\" "+ basePath + "upload\" method=\"post\" enctype=\"multipart/form-data\">"
+					+	   "<p>"
+					+		"Select a file : <input type=\"file\" name=\"file\" size=\"50\" />"
+					+	   "</p>"
+					+	   "<input type=\"submit\" value=\"Upload It\" />"
+					+	"</form>" ;
 			
 			return html;
 		} catch (IOException e) {
@@ -241,6 +258,9 @@ public class FileDownloadRessource {
 	@Produces("text/html")
 	@Path("/application/html/{var: .*}")
 	public String displayFileList(@PathParam("var") String pathname) {
+		if(!isAuthenticated){
+			return generateConnectHTML();
+		}
 		try {
 			String html = "<h1>Server files</h1>\n" ;
 			if(pathname.length() > 0 && pathname.lastIndexOf("/") == pathname.length()-1){
@@ -265,6 +285,14 @@ public class FileDownloadRessource {
 					html += "</p>";
 				}
 			}
+			//Upload form.
+			html += "<h2>Upload a file in this folder :</h2>"
+					+	"<form action=\" "+ basePath + "upload/" + pathname + "\" method=\"post\" enctype=\"multipart/form-data\">"
+					+	   "<p>"
+					+		"Select a file : <input type=\"file\" name=\"file\" size=\"50\" />"
+					+	   "</p>"
+					+	   "<input type=\"submit\" value=\"Upload It\" />"
+					+	"</form>" ;
 			return html;
 		} catch (IOException e) {
 			System.out.print("Erreur lors de l'affichage de la liste des fichiers du serveur ");
@@ -275,6 +303,9 @@ public class FileDownloadRessource {
 	@GET
 	@Path("/upload")
 	public String uploadFileForm(){
+		if(!isAuthenticated){
+			return generateConnectHTML();
+		}
 		return "<html>" 
 				+ "<body>"
 				+	"<h1>Upload file form</h1>"
@@ -298,8 +329,56 @@ public class FileDownloadRessource {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-
-		return "";
+		return "<h1>File correctly uploaded !</h1>\n" ;
+	}
+	
+	@POST
+	@Path("/upload/{var: .*}")
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
+    @Produces("text/html")
+	public String upload(@FormDataParam("file") InputStream file, @FormDataParam("file") FormDataContentDisposition fileDetail, @PathParam("var") String pathname) {        	      
+    	try {
+    		ftp.storeFile(pathname + "/test.txt", file);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return "<h1>File correctly uploaded !</h1>\n" ;
 	}
 
+	@GET
+	@Path("/connect")
+    @Produces("text/html")
+	public String connect(){
+		return generateConnectHTML();
+	}
+	
+	@POST
+	@Path("/connect")
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
+    @Produces("text/html")
+	public String connect(@FormParam("id") String id, @FormParam("password") String password){
+		if(connectToServer(id, password)){
+			isAuthenticated = true;
+			return "<h1>You are connected !</h1>\n" ;
+		}else{
+			return "<h1>Connection failed</h1>\n" ;
+		}
+	}
+	
+	public String generateConnectHTML(){
+		return "<html>" 
+				+ "<body>"
+				+	"<h1>Connexion :</h1>"
+				+	"<form action=\" "+ basePath + "connect\" method=\"post\" enctype=\"multipart/form-data\">"
+				+	   "<p>"
+				+		"Id : <input type=\"text\" name=\"id\" size=\"50\" />"
+				+	   "</p>"
+				+	   "<p>"
+				+		"Password : <input type=\"text\" name=\"password\" size=\"50\" />"
+				+	   "</p>"
+				+	   "<input type=\"submit\" value=\"Upload It\" />"
+				+	"</form>"
+				+"</body>"
+				+"</html>" ;
+	}
 }
