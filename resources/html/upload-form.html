@@ -1,7 +1,13 @@
 <h2>Upload a file in this folder :</h2>
-<form action="{{basePath}}upload" method="post" enctype="multipart/form-data">
+<form id="formFile" action="basePathupload/filepath" method="post" enctype="multipart/form-data">
 	<p>
-		Select a file : <input type="file" name="file" size="50" />
+		Select a file : <input type="file" id="fileInput" name="file" size="50" />
 	</p>
 	<input type="submit" value="Upload file" />
 </form>
+<script>
+document.getElementById('fileInput').onchange = function () {
+  document.getElementById('formFile').action = "basePathupload/filepath" + this.value.replace(/.*[\/\\]/, '');
+  console.log(document.getElementById('formFile').action);
+};
+</script>

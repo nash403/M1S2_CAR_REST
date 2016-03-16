@@ -22,14 +22,16 @@ import org.apache.commons.net.ftp.FTPFile;
 import org.apache.commons.net.ftp.FTPReply;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
-
+// base path is "http://localhost:8080/rest/tp2/"
 public class FileDownloadRessource {
 
 	protected FTPClient ftp;
 	protected boolean initialized = false;
 	private String basePath = "http://localhost:8080/rest/tp2/";
 	private boolean isAuthenticated = false;
+	private String user = "";
 	private HtmlHandler html;
+	
 
 	public FileDownloadRessource() {
 		try {
@@ -116,10 +118,10 @@ public class FileDownloadRessource {
 			response += "</td>";
 			response += "<td>" + f.getSize() + "</td>\n" + "</tr>\n";
 		}
-		rendered = rendered.replace("<tbody></tbody>", "<tbody>" + response + "</tbody>");
+		rendered = rendered.replace("{{user}}",this.user).replace("<tbody></tbody>", "<tbody>" + response + "</tbody>");
 		// Upload form.
 		String formulaire = this.html.render("upload-form.html");
-		formulaire = formulaire.replace("{{basePath}}", this.basePath);
+		formulaire = formulaire.replaceAll("basePath", this.basePath).replaceAll("filepath", path==null?"":path);
 		rendered = rendered.replace("</body>", formulaire + "</body>");
 
 		return rendered;
@@ -184,7 +186,10 @@ public class FileDownloadRessource {
 	@Path("/delete/{var: .*}/{fileName}")
 	@Produces("text/html")
 	public String deleteFile(@PathParam("var") String pathname, @PathParam("fileName") String fileName) {
-
+		if (!isAuthenticated) {
+			System.out.println("[DELETE file] not authenticated");
+			return generateConnectHTML();
+		}
 		try {
 			ftp.deleteFile(pathname + "/" + fileName);
 			String msg = "<h1>File deletion</h1>\n";
@@ -200,6 +205,10 @@ public class FileDownloadRessource {
 	@Path("/delete/{fileName}")
 	@Produces("text/html")
 	public String deleteFile(@PathParam("fileName") String fileName) {
+		if (!isAuthenticated) {
+			System.out.println("[DELETE file] not authenticated");
+			return generateConnectHTML();
+		}
 		try {
 			ftp.deleteFile(fileName);
 			String msg = "<h1>File deletion</h1>\n";
@@ -212,29 +221,21 @@ public class FileDownloadRessource {
 	}
 
 	@POST
-	@Path("/upload")
-	@Consumes(MediaType.MULTIPART_FORM_DATA)
-	@Produces("text/html")
-	public String upload(@FormDataParam("file") InputStream file,
-			@FormDataParam("file") FormDataContentDisposition fileDetail) {
-		try {
-			ftp.storeFile("test.txt", file);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return "<h1>File correctly uploaded !</h1>\n";
-	}
-
-	@POST
 	@Path("/upload/{var: .*}")
 	@Consumes(MediaType.MULTIPART_FORM_DATA)
 	@Produces("text/html")
-	public String upload(@FormDataParam("file") InputStream file,
-			@FormDataParam("file") FormDataContentDisposition fileDetail, @PathParam("var") String pathname) {
+	public String upload(@FormDataParam("file") InputStream file, @PathParam("var") String pathname) {
+		System.out.println("[UPLOAD] "+pathname);
+		if (!isAuthenticated) {
+			System.out.println("[UPLOAD file] not authenticated");
+			return generateConnectHTML();
+		}
 		try {
-			ftp.storeFile(pathname + "/test.txt", file);
+			ftp.storeFile(pathname, file);
 		} catch (IOException e) {
+			System.out.println("[UPLOAD ERROR] "+pathname);
 			e.printStackTrace();
+			return "<h1>Error while storing file !</h1>\n";
 		}
 		return "<h1>File correctly uploaded !</h1>\n";
 	}
@@ -255,6 +256,7 @@ public class FileDownloadRessource {
 		System.out.print("[CONNECT] formulaire de connection");
 		if (connectToServer(id, password)) {
 			isAuthenticated = true;
+			user = id;
 			System.out.println("[CONNECT OK] Connected as login: " + id + ", pass: " + password);
 			return "<h1>You are connected !</h1>\n";
 		} else {
@@ -265,6 +267,6 @@ public class FileDownloadRessource {
 
 	public String generateConnectHTML() {
 		System.out.println("[CONNECT HTML]");
-		return this.html.render("connect.html");
+		return this.html.render("connect.html").replace("{{basePath}}", basePath);
 	}
 }
