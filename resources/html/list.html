@@ -59,6 +59,9 @@
     a {
       text-decoration: none;
     }
+    a.line {
+      text-decoration: underline;
+    }
 
     td a {
       color: #663300;
@@ -105,13 +108,21 @@
         <tr>
           <th>Name</th>
           <th>Size <small>(bytes)</small></th>
+          <th>Action</th>
         </tr>
       </thead>
       <tbody></tbody>
     </table>
 
   </div>
-
+<script>
+function del(id){
+	var request = new XMLHttpRequest();
+	console.log(document.getElementById(id));
+	request.open('DELETE', document.getElementById(id).dataset.chemin, true);
+	request.send();
+}
+</script>
 </body>
 
 </html>

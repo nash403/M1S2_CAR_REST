@@ -1,27 +1,29 @@
 package car.tp2;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.SocketException;
-import java.text.SimpleDateFormat;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
-import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPFile;
 import org.apache.commons.net.ftp.FTPReply;
-import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
+
+import sun.misc.BASE64Decoder;
+
 // base path is "http://localhost:8080/rest/tp2/"
 public class FileDownloadRessource {
 
@@ -31,7 +33,12 @@ public class FileDownloadRessource {
 	private boolean isAuthenticated = false;
 	private String user = "";
 	private HtmlHandler html;
-	
+
+	@Context
+	private HttpServletRequest request;
+
+	@Context
+	private HttpServletResponse response;
 
 	public FileDownloadRessource() {
 		try {
@@ -82,10 +89,60 @@ public class FileDownloadRessource {
 			return false;
 		}
 	}
-	
+
+	private boolean isConnected() {
+		String decoded;
+		try {
+			// Get the Authorisation Header from Request
+			String header = request.getHeader("authorization");
+
+			if (header == null) {
+				System.out.println("[CONNECT KO] no auth headers");
+				isAuthenticated = false;
+				response.setHeader("WWW-Authenticate", "Basic realm=\"HAHA\"");
+				return false;
+			}
+			// Header is in the format "Basic 3nc0dedDat4"
+			// We need to extract data before decoding it back to original
+			// string
+			String data = header.substring(header.indexOf(" ") + 1);
+
+			// Decode the data back to original string
+			byte[] bytes = new BASE64Decoder().decodeBuffer(data);
+			decoded = new String(bytes);
+
+			String[] id_pass = decoded.split(":");
+			String id = id_pass[0];
+			String pass = id_pass[1];
+			if (!isAuthenticated && connectToServer(id, pass)) {
+				isAuthenticated = true;
+				user = id;
+				System.out.println("[CONNECT OK] Connected as login: " + id + ", pass: " + pass);
+				return true;
+			} else {
+				if (!isAuthenticated)
+					System.out.println("[CONNECT KO] login/pass error");
+					response.setHeader("WWW-Authenticate", "Basic realm=\"HAHA\"");
+				return isAuthenticated;
+			}
+
+		} catch (IOException e) {
+			e.printStackTrace();
+			System.out.println("[CONNECT KO] ERROR");
+			isAuthenticated = false;
+			response.setHeader("WWW-Authenticate", "Basic realm=\"HAHA\"");
+			return false;
+		}
+	}
+
 	@GET
 	@Produces("text/html")
 	public String displayFileList() {
+		if (!isConnected()) {
+			System.out.println("[HOME] not authenticated");
+			response.setStatus(401);
+			return generateErrorConnectHTML();
+		}
 		return processListFiles(null);
 	}
 
@@ -93,35 +150,41 @@ public class FileDownloadRessource {
 	@Produces("text/html")
 	@Path("list/{var: .*}")
 	public String displayFileList(@PathParam("var") String pathname) {
+		if (!isConnected()) {
+			System.out.println("[LIST] not authenticated");
+			response.setStatus(401);
+			return generateErrorConnectHTML();
+		}
 		return processListFiles(pathname);
 	}
 
 	private String processListFiles(String path) {
-		System.out.println("[DISPLAY DIR CONTENTS] "+path);
-		if (!isAuthenticated) {
-			System.out.println("[DISPLAY DIR CONTENTS] not authenticated");
-			return generateConnectHTML();
-		}
-		SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm");
+		System.out.println("[LSIT] " + path);
 		String rendered = this.html.render("list.html");
 		String response = "";
-		response += path == null ? "" : "<tr class='$class'>\n" + "<td>" + "<a href ='" + basePath + "list/" + path + ".."+ "'>..</a></td><td></td></tr>";
+		response += path == null ? ""
+				: "<tr class='$class'>\n" + "<td>" + "<a href ='" + basePath + "list/" + path + ".."
+						+ "'>..</a></td><td></td></tr>";
 		for (FTPFile f : this.getFiles(path)) {
 
 			response += "<tr class='$class'>\n" + "<td>";
 			if (f.isFile()) {
-				response += "<a href ='" + basePath + "get/" + (path == null ? "" : path) + f.getName() + "'>" + f.getName() + "</a>";
+				response += "<a href ='" + basePath + "get/" + (path == null ? "" : path) + f.getName() + "'>"
+						+ f.getName() + "</a>";
 			}
 			if (f.isDirectory()) {
-					response += "  <a href ='" + basePath + "list/" + f.getName() + "'>" + f.getName() + "</a>";
+				response += "  <a href ='" + basePath + "list/" + f.getName() + "'>" + f.getName() + "</a>";
 			}
 			response += "</td>";
-			response += "<td>" + f.getSize() + "</td>\n" + "</tr>\n";
+			response += "<td>" + f.getSize() + "</td>";
+			response += "<td><a id='"+f.getName()+"' class='line' href='javascript:void(0)' data-chemin='" + basePath + "del/"
+					+ (path == null ? "" : path) + f.getName() + "' onclick=\"del('"+f.getName()+"')\">Delete</a></td></tr>\n";
 		}
-		rendered = rendered.replace("{{user}}",this.user).replace("<tbody></tbody>", "<tbody>" + response + "</tbody>");
+		rendered = rendered.replace("{{user}}", this.user).replace("<tbody></tbody>",
+				"<tbody>" + response + "</tbody>");
 		// Upload form.
 		String formulaire = this.html.render("upload-form.html");
-		formulaire = formulaire.replaceAll("basePath", this.basePath).replaceAll("filepath", path==null?"":path);
+		formulaire = formulaire.replaceAll("basePath", this.basePath).replaceAll("filepath", path == null ? "" : path);
 		rendered = rendered.replace("</body>", formulaire + "</body>");
 
 		return rendered;
@@ -141,20 +204,21 @@ public class FileDownloadRessource {
 	@Path("get/{filename}")
 	public Response getFile(@PathParam("filename") String filename) {
 		System.out.println("[GET] " + filename);
-		if (!isAuthenticated) {
-			System.out.println("[GET file] not authenticated");
+		if (!isConnected()) {
+			System.out.println("[GET] not authenticated");
+			response.setStatus(401);
 			return Response.notModified().build();
 		}
 		InputStream in;
 		try {
-			System.out.println("[GET file] Start retrieving file stream");
+			System.out.println("[GET] Start retrieving file stream");
 			in = this.ftp.retrieveFileStream(filename);
 			Response response = Response.ok(in).build();
 			ftp.completePendingCommand();
-			System.out.println("[GET file] Sending file to client");
+			System.out.println("[GET] Sending file to client");
 			return response;
 		} catch (IOException e) {
-			System.out.println("[GET file] Erreur lors du téléchargement du fichier :" + filename);
+			System.out.println("[GET] Erreur lors du téléchargement du fichier :" + filename);
 		}
 		return null;
 	}
@@ -164,31 +228,34 @@ public class FileDownloadRessource {
 	@Path("get/{var: .*}/{filename}")
 	public Response getFile(@PathParam("var") String pathname, @PathParam("filename") String filename) {
 		System.out.println("[GET] " + pathname + filename);
-		if (!isAuthenticated) {
-			System.out.println("[GET file] not authenticated");
+		if (!isConnected()) {
+			System.out.println("[GET] not authenticated");
+			response.setStatus(401);
 			return Response.notModified().build();
 		}
 		InputStream in;
 		try {
-			System.out.println("[GET file] Start retrieving file stream");
+			System.out.println("[GET] Start retrieving file stream");
 			in = this.ftp.retrieveFileStream(pathname + "/" + filename);
 			Response response = Response.ok(in).build();
 			ftp.completePendingCommand();
-			System.out.println("[GET file] Sending file to client");
+			System.out.println("[GET] Sending file to client");
 			return response;
 		} catch (IOException e) {
-			System.out.println("[GET file] Erreur lors du téléchargement du fichier :" + filename);
+			System.out.println("[GET] Erreur lors du téléchargement du fichier :" + filename);
 		}
 		return null;
 	}
 
 	@DELETE
-	@Path("/delete/{var: .*}/{fileName}")
+	@Path("/del/{var: .*}/{fileName}")
 	@Produces("text/html")
 	public String deleteFile(@PathParam("var") String pathname, @PathParam("fileName") String fileName) {
-		if (!isAuthenticated) {
-			System.out.println("[DELETE file] not authenticated");
-			return generateConnectHTML();
+		System.out.println("[DELETE] " + fileName);
+		if (!isConnected()) {
+			System.out.println("[DELETE] not authenticated");
+			response.setStatus(401);
+			return generateErrorConnectHTML();
 		}
 		try {
 			ftp.deleteFile(pathname + "/" + fileName);
@@ -202,12 +269,14 @@ public class FileDownloadRessource {
 	}
 
 	@DELETE
-	@Path("/delete/{fileName}")
+	@Path("/del/{fileName}")
 	@Produces("text/html")
 	public String deleteFile(@PathParam("fileName") String fileName) {
-		if (!isAuthenticated) {
-			System.out.println("[DELETE file] not authenticated");
-			return generateConnectHTML();
+		System.out.println("[DELETE] " + fileName);
+		if (!isConnected()) {
+			System.out.println("[DELETE] not authenticated");
+			response.setStatus(401);
+			return generateErrorConnectHTML();
 		}
 		try {
 			ftp.deleteFile(fileName);
@@ -225,48 +294,23 @@ public class FileDownloadRessource {
 	@Consumes(MediaType.MULTIPART_FORM_DATA)
 	@Produces("text/html")
 	public String upload(@FormDataParam("file") InputStream file, @PathParam("var") String pathname) {
-		System.out.println("[UPLOAD] "+pathname);
-		if (!isAuthenticated) {
-			System.out.println("[UPLOAD file] not authenticated");
-			return generateConnectHTML();
+		System.out.println("[UPLOAD] " + pathname);
+		if (!isConnected()) {
+			System.out.println("[UPLOAD] not authenticated");
+			response.setStatus(401);
+			return generateErrorConnectHTML();
 		}
 		try {
 			ftp.storeFile(pathname, file);
 		} catch (IOException e) {
-			System.out.println("[UPLOAD ERROR] "+pathname);
+			System.out.println("[UPLOAD ERROR] " + pathname);
 			e.printStackTrace();
 			return "<h1>Error while storing file !</h1>\n";
 		}
 		return "<h1>File correctly uploaded !</h1>\n";
 	}
 
-	@GET
-	@Path("/connect")
-	@Produces("text/html")
-	public String connect() {
-		System.out.println("[CONNECT] formulaire de connection");
-		return generateConnectHTML();
-	}
-
-	@POST
-	@Path("/connect")
-	@Consumes(MediaType.MULTIPART_FORM_DATA)
-	@Produces("text/html")
-	public String connect(@FormParam("id") String id, @FormParam("password") String password) {
-		System.out.print("[CONNECT] formulaire de connection");
-		if (connectToServer(id, password)) {
-			isAuthenticated = true;
-			user = id;
-			System.out.println("[CONNECT OK] Connected as login: " + id + ", pass: " + password);
-			return "<h1>You are connected !</h1>\n";
-		} else {
-			System.out.println("[CONNECT KO]");
-			return "<h1>Connection failed</h1>\n";
-		}
-	}
-
-	public String generateConnectHTML() {
-		System.out.println("[CONNECT HTML]");
-		return this.html.render("connect.html").replace("{{basePath}}", basePath);
+	public String generateErrorConnectHTML() {
+		return "<h1>401 UnAuthorized !</h1>";
 	}
 }
