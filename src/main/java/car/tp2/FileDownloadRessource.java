@@ -112,6 +112,12 @@ public class FileDownloadRessource {
 			decoded = new String(bytes);
 
 			String[] id_pass = decoded.split(":");
+			if (id_pass.length != 2){
+				System.out.println("[CONNECT KO] authorization not ok");
+				isAuthenticated = false;
+				response.setHeader("WWW-Authenticate", "Basic realm=\"HAHA\"");
+				return false;
+			}
 			String id = id_pass[0];
 			String pass = id_pass[1];
 			if (!isAuthenticated && connectToServer(id, pass)) {
@@ -122,7 +128,7 @@ public class FileDownloadRessource {
 			} else {
 				if (!isAuthenticated)
 					System.out.println("[CONNECT KO] login/pass error");
-					response.setHeader("WWW-Authenticate", "Basic realm=\"HAHA\"");
+					response.setHeader("WWW-Authenticate", "Basic realm=\"Sign in please !\"");
 				return isAuthenticated;
 			}
 
@@ -163,7 +169,7 @@ public class FileDownloadRessource {
 		String rendered = this.html.render("list.html");
 		String response = "";
 		
-		if(path.length() > 0 && path.lastIndexOf("/") == path.length()-1){
+		if(path != null && path.length() > 0 && path.lastIndexOf("/") == path.length()-1){
 			path = path.substring(0, path.length()-1);
 		}
 		 
@@ -172,7 +178,7 @@ public class FileDownloadRessource {
 			if(f.getName().equals("..")){
 				if(!path.equals("")){
 					response += "<tr class='$class'>\n" + "<td>";
-					response += "  <a href ='" + basePath + "list" + (path.equals("") ? "/" : "/" + path + "/") + f.getName() + "'>" + f.getName() + "</a>";
+					response += "  <a href ='" + basePath + "list" + (path == null || path.equals("") ? "/" : "/" + path + "/") + f.getName() + "'>" + f.getName() + "</a>";
 					response += "</td>";
 					response += "<td> - </td>";
 				}
@@ -185,13 +191,13 @@ public class FileDownloadRessource {
 					response += "<td>" + f.getSize() + "</td>";
 				}
 				if (f.isDirectory()) {
-					response += "  <a href ='" + basePath + "list" + (path.equals("") ? "/" : "/" + path + "/") + f.getName() + "'>" + f.getName() + "</a>";
+					response += "  <a href ='" + basePath + "list" + (path == null || path.equals("") ? "/" : "/" + path + "/") + f.getName() + "'>" + f.getName() + "</a>";
 					response += "</td>";
 					response += "<td> - </td>";
 				}
 				
 				response += "<td><a id='"+f.getName()+"' class='line' href='javascript:void(0)' data-chemin='" + basePath + "del/"
-						+ (path == null ? "" : (path.equals("") ? "" : path + "/")) + f.getName() + "' onclick=\"del('"+f.getName()+"')\">Delete</a></td></tr>\n";
+						+ (path == null ? "" : (path == null || path.equals("") ? "" : path + "/")) + f.getName() + "' onclick=\"del('"+f.getName()+"')\">Delete</a></td></tr>\n";
 			}
 		}
 		rendered = rendered.replace("{{user}}", this.user).replace("<tbody></tbody>",
@@ -321,7 +327,9 @@ public class FileDownloadRessource {
 			e.printStackTrace();
 			return "<h1>Error while storing file !</h1>\n";
 		}
-		return "<h1>File correctly uploaded !</h1>\n";
+		response.setStatus(HttpServletResponse.SC_FOUND);
+		response.setHeader("Location", basePath);
+		return "";//"<h1>File correctly uploaded !</h1>\n";
 	}
 
 	public String generateErrorConnectHTML() {
