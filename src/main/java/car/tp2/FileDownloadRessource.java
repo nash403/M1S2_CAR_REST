@@ -159,32 +159,46 @@ public class FileDownloadRessource {
 	}
 
 	private String processListFiles(String path) {
-		System.out.println("[LSIT] " + path);
+		System.out.println("[LIST] " + path);
 		String rendered = this.html.render("list.html");
 		String response = "";
-		response += path == null ? ""
-				: "<tr class='$class'>\n" + "<td>" + "<a href ='" + basePath + "list/" + path + ".."
-						+ "'>..</a></td><td></td></tr>";
+		
+		if(path.length() > 0 && path.lastIndexOf("/") == path.length()-1){
+			path = path.substring(0, path.length()-1);
+		}
+		 
 		for (FTPFile f : this.getFiles(path)) {
 
-			response += "<tr class='$class'>\n" + "<td>";
-			if (f.isFile()) {
-				response += "<a href ='" + basePath + "get/" + (path == null ? "" : path) + f.getName() + "'>"
-						+ f.getName() + "</a>";
+			if(f.getName().equals("..")){
+				if(!path.equals("")){
+					response += "<tr class='$class'>\n" + "<td>";
+					response += "  <a href ='" + basePath + "list" + (path.equals("") ? "/" : "/" + path + "/") + f.getName() + "'>" + f.getName() + "</a>";
+					response += "</td>";
+					response += "<td> - </td>";
+				}
+			}else if(!f.getName().equals(".")){
+				response += "<tr class='$class'>\n" + "<td>";
+				if (f.isFile()) {
+					response += "<a href ='" + basePath + "get" + (path == null ? "" : (path.equals("") ? "/" : "/" + path + "/")) + f.getName() + "'>"
+							+ f.getName() + "</a>";
+					response += "</td>";
+					response += "<td>" + f.getSize() + "</td>";
+				}
+				if (f.isDirectory()) {
+					response += "  <a href ='" + basePath + "list" + (path.equals("") ? "/" : "/" + path + "/") + f.getName() + "'>" + f.getName() + "</a>";
+					response += "</td>";
+					response += "<td> - </td>";
+				}
+				
+				response += "<td><a id='"+f.getName()+"' class='line' href='javascript:void(0)' data-chemin='" + basePath + "del/"
+						+ (path == null ? "" : (path.equals("") ? "" : path + "/")) + f.getName() + "' onclick=\"del('"+f.getName()+"')\">Delete</a></td></tr>\n";
 			}
-			if (f.isDirectory()) {
-				response += "  <a href ='" + basePath + "list/" + f.getName() + "'>" + f.getName() + "</a>";
-			}
-			response += "</td>";
-			response += "<td>" + f.getSize() + "</td>";
-			response += "<td><a id='"+f.getName()+"' class='line' href='javascript:void(0)' data-chemin='" + basePath + "del/"
-					+ (path == null ? "" : path) + f.getName() + "' onclick=\"del('"+f.getName()+"')\">Delete</a></td></tr>\n";
 		}
 		rendered = rendered.replace("{{user}}", this.user).replace("<tbody></tbody>",
 				"<tbody>" + response + "</tbody>");
 		// Upload form.
 		String formulaire = this.html.render("upload-form.html");
-		formulaire = formulaire.replaceAll("basePath", this.basePath).replaceAll("filepath", path == null ? "" : path);
+		formulaire = formulaire.replaceAll("basePath", this.basePath).replaceAll("filepath", path == null ? "" : path + "/");
 		rendered = rendered.replace("</body>", formulaire + "</body>");
 
 		return rendered;

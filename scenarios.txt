@@ -1,0 +1,54 @@
+Lucas Delvallet
+Honoré Nintunze
+
+Scénarios :
+	Scénario : L'utilisateur peut se connecter
+		Dans le cas ou le serveur est démarré
+		L'utilisateur entre un login est un mot de passe correct
+		Alors la liste des fichiers apparait
+		
+	Scénario : L'utilisateur se trompe dans la connection
+		Dans le cas ou le serveur est démarré
+		L'utilisateur entre un login est un mot de passe incorrect ou inexistant
+		Alors un page affichant une erreur de connexion apparait.
+		
+	Scénario : La liste des fichier est correct
+		Dans le cas ou l'utilisateur se connecte
+		La liste des fichiers est affichée et correspond au contenu du dossier ftp
+		
+	Scénario : L'utilisateur navigue dans ses dossier
+		Dans le cas ou l'utilisateur se connecte
+		La liste des fichiers est affiché
+		L'utilisateur clic sur un dossier
+		Le contenu du dossier est correctement affiché
+		
+	Scénario : L'utilisateur navigue dans ses dossier et veut retourner au dossier précédent
+		Dans le cas ou l'utilisateur se connecte
+		La liste des fichiers est affiché
+		L'utilisateur clic sur un dossier
+		Le contenu du dossier est correctement affiché
+		L'utilisateur clic maintenant sur ".."
+		Le contenu du dossier précédent est réaffiché.
+		
+	Scénario : L'utilisateur veut télécharger un fichier
+		Dans le cas ou l'utilisateur se connecte
+		La liste des fichiers est affiché
+		L'utilisateur clic sur un fichier
+		Le fichier est alors correctement proposé au téléchargement
+		
+	Scénario : L'utilisateur veut uploader un fichier
+		Dans le cas ou l'utilisateur se connecte
+		La liste des fichiers est affiché
+		L'utilisateur upload un fichier via le formulaire d'upload
+		L'utilisateur retourne dans le dossier d'upload
+		Le fichier est alors visible dans la liste des fichiers
+		
+	Scénario : L'utilisateur veut supprimer un fichier
+		Dans le cas ou l'utilisateur se connecte
+		La liste des fichiers est affiché
+		L'utilisateur clic sur le bouton supprimer d'un fichier
+		L'utilisateur rafraichit la page
+		Le fichier est alors inaccessible car supprimé
+		
+		
+		
