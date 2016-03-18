@@ -19,3 +19,5 @@ La passerelle permet depuis un navigateur:
 Le TP fonctionne dans l'ensemble et respecte les consignes. Il fonctionne avec le serveur _FTP_ implémenté au premier TP (et également avec tout autre serveur _FTP_).
 
 Pour les tests, nous avons un utilisateur `Bobby` qui a pour mot de passe `123` pour se connecter à la passerelle _REST_.
+
+Selon les système d'exploitation utilisé et les serveurs FTP utilisé, il se peut qu'il y ait quelque fonctionnalité qui ne fonctionnent pas.
