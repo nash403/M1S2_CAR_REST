@@ -5,7 +5,8 @@
 #### 2015-2016
 ___
 
-> **NB:** _Il faut avoir les librairies pour que la passerelle fonctionne._
+> **NB:** _Il faut avoir les librairies pour que la passerelle fonctionne. Les tests se trouvent dans le fichiers scenarios.txt._
+
 
 Le but de ce TP2 est d'implémenter une passerelle _REST_ qui fonctionne avec le serveur _FTP_ implémenté au TP1 ou un serveur _FTP_ existant.
 
